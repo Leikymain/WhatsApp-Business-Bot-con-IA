@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  
+  html {
+    font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, 'Lucida Grande', Arial, Ubuntu, Cantarell, 'Fira Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: #f8fafc;
+    color: #1f2937;
+    line-height: 1.6;
+  }
+  
+  #root {
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  /* WhatsApp Chat Styles */
+  .whatsapp-bg {
+    background-color: #e5ddd5;
+    background-image: 
+      radial-gradient(circle at 25% 25%, rgba(255,255,255,0.1) 0%, transparent 50%),
+      radial-gradient(circle at 75% 75%, rgba(255,255,255,0.1) 0%, transparent 50%);
+  }
+  
+  .message-bubble {
+    @apply rounded-lg px-4 py-2 max-w-xs shadow-sm relative;
+  }
+  
+  .message-bubble::before {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 0;
+  }
+  
+  .message-user {
+    @apply bg-whatsapp-light text-gray-800;
+  }
+  
+  .message-user::before {
+    right: -8px;
+    top: 10px;
+    border-left: 8px solid #dcf8c6;
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+  }
+  
+  .message-bot {
+    @apply bg-white text-gray-800;
+  }
+  
+  .message-bot::before {
+    left: -8px;
+    top: 10px;
+    border-right: 8px solid white;
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+  }
+  
+  /* Custom scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+  }
+  
+  /* Button animations */
+  .btn-whatsapp {
+    @apply bg-whatsapp-primary hover:bg-whatsapp-secondary text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95;
+  }
+  
+  .btn-outline-whatsapp {
+    @apply border-2 border-whatsapp-primary text-whatsapp-primary hover:bg-whatsapp-primary hover:text-white font-medium py-2 px-4 rounded-lg transition-all duration-200;
+  }
+  
+  /* Loading animation */
+  .typing-indicator {
+    @apply flex space-x-1;
+  }
+  
+  .typing-dot {
+    @apply w-2 h-2 bg-gray-400 rounded-full animate-bounce;
+  }
+  
+  .typing-dot:nth-child(2) {
+    animation-delay: 0.1s;
+  }
+  
+  .typing-dot:nth-child(3) {
+    animation-delay: 0.2s;
+  }
+}
+
+@layer utilities {
+  .text-shadow {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+  
+  .glass-effect {
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.9);
+  }
+}
