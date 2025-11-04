@@ -22,7 +22,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://<tu-frontend>.up.railway.app"],  # o tu dominio
+    allow_origins=["*"],  # o tu dominio
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -452,20 +452,6 @@ def health_check():
         "configured_clients": len(clients_config)
     }
 
-# Servir frontend (Vite build) si existe whatsapp-demo/dist
-DIST_DIR = os.path.join(os.path.dirname(__file__), "whatsapp-demo", "dist")
-if os.path.isdir(DIST_DIR):
-    # Monta los archivos estáticos en raíz
-    app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="frontend")
-
-    # Fallback SPA: cualquier ruta GET no definida por la API sirve index.html
-    @app.get("/{full_path:path}")
-    async def serve_spa(full_path: str):
-        index_file = os.path.join(DIST_DIR, "index.html")
-        return FileResponse(index_file)
-else:
-    print(f"[AVISO] No se encontró el build del frontend en '{DIST_DIR}'. "
-          "Ejecuta 'pnpm install && pnpm build' dentro de 'whatsapp-demo' para generar el build.")
 
 if __name__ == "__main__":
     import uvicorn
