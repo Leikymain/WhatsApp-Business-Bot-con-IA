@@ -56,6 +56,25 @@ const WhatsAppBotDemo: React.FC = () => {
     inmobiliaria: ['Quiero alquilar', 'Quiero comprar', 'Agendar visita', 'Zona disponible']
   };
 
+  const getApiBase = (): string => {
+    const raw = (import.meta.env.VITE_API_URL ?? 'http://localhost:8003').trim();
+
+    // Si falta el protocolo, asumimos https
+    if (!/^https?:\/\//i.test(raw)) {
+      console.warn('[Config] VITE_API_URL sin protocolo. Asumiendo https://', raw);
+      return `https://${raw.replace(/\/+$/, '')}`;
+    }
+
+    // Elimina barras finales para evitar dobles slashes
+    return raw.replace(/\/+$/, '');
+  };
+
+  const buildApiUrl = (path: string): string => {
+    const base = getApiBase();
+    const cleanPath = path.replace(/^\/+/, ''); // elimina barras iniciales del path
+    return `${base}/${cleanPath}`;
+  };
+
   const handleSendMessage = async (messageText: string = inputMessage): Promise<void> => {
     if (!messageText.trim() || loading) return;
 
@@ -75,7 +94,9 @@ const WhatsAppBotDemo: React.FC = () => {
       formData.append('phone', phoneNumber);
       formData.append('client_id', businessType);
 
-      const response = await fetch(`${API_URL}/message/send`, {
+      const url = buildApiUrl('/message/send');
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${API_TOKEN}`,
@@ -83,7 +104,7 @@ const WhatsAppBotDemo: React.FC = () => {
         body: formData
       });
 
-      if (!response.ok) throw new Error('Error en la respuesta');
+      if (!response.ok) throw new Error(`Error en la respuesta: ${response.status}`);
 
       const data: BotResponse = await response.json();
 
