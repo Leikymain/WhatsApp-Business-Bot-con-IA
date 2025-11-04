@@ -20,7 +20,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://<tu-frontend>.up.railway.app"],  # o tu dominio
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -452,4 +452,5 @@ def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8003)
+    port = int(os.getenv("PORT", 8003))
+    uvicorn.run(app, host="0.0.0.0", port=port)
