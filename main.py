@@ -20,12 +20,13 @@ app = FastAPI(
     version="1.0.0"
 )
 
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+allowed_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()] or []
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["whatsapp-business-bot-demo.up.railway.app"],  # o tu dominio
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=allowed_origins,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
 # =============================
