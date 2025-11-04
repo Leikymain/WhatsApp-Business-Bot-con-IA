@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+echo "📦 Instalando PNPM..."
+npm install -g pnpm
+
 echo "🚀 Iniciando build automático del frontend (Vite + React con pnpm)..."
 
 # Construir el frontend
