@@ -39,8 +39,29 @@ const WhatsAppBotDemo: React.FC = () => {
   const [businessType, setBusinessType] = useState<BusinessType>('restaurante');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8003';
+  // Token de API (Vite env). No mezclar origen del navegador.
   const API_TOKEN = import.meta.env.VITE_API_TOKEN ?? '';
+
+  // Normaliza la base de la API: corrige protocolo y barras
+  const getApiBase = (): string => {
+    const raw = (import.meta.env.VITE_API_URL ?? 'http://localhost:8003').trim();
+
+    // Añade protocolo si falta (asume https en producción)
+    if (!/^https?:\/\//i.test(raw)) {
+      console.warn('[Config] VITE_API_URL sin protocolo. Asumiendo https://', raw);
+      return `https://${raw.replace(/\/+$/, '')}`;
+    }
+
+    // Quita barras finales para evitar dobles slashes
+    return raw.replace(/\/+$/, '');
+  };
+
+  // Construye URL absoluta confiable
+  const buildApiUrl = (path: string): string => {
+    const base = getApiBase();
+    const cleanPath = path.replace(/^\/+/, ''); // elimina barras iniciales del path
+    return `${base}/${cleanPath}`;
+  };
 
   const scrollToBottom = (): void => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -54,25 +75,6 @@ const WhatsAppBotDemo: React.FC = () => {
     restaurante: ['Horario', 'Reserva', 'Menú del día', 'Precios'],
     tienda: ['Horario', 'Envíos', 'Devoluciones', 'Catálogo'],
     inmobiliaria: ['Quiero alquilar', 'Quiero comprar', 'Agendar visita', 'Zona disponible']
-  };
-
-  const getApiBase = (): string => {
-    const raw = (import.meta.env.VITE_API_URL ?? 'http://localhost:8003').trim();
-
-    // Si falta el protocolo, asumimos https
-    if (!/^https?:\/\//i.test(raw)) {
-      console.warn('[Config] VITE_API_URL sin protocolo. Asumiendo https://', raw);
-      return `https://${raw.replace(/\/+$/, '')}`;
-    }
-
-    // Elimina barras finales para evitar dobles slashes
-    return raw.replace(/\/+$/, '');
-  };
-
-  const buildApiUrl = (path: string): string => {
-    const base = getApiBase();
-    const cleanPath = path.replace(/^\/+/, ''); // elimina barras iniciales del path
-    return `${base}/${cleanPath}`;
   };
 
   const handleSendMessage = async (messageText: string = inputMessage): Promise<void> => {
@@ -94,7 +96,8 @@ const WhatsAppBotDemo: React.FC = () => {
       formData.append('phone', phoneNumber);
       formData.append('client_id', businessType);
 
-      const url = buildApiUrl('/message/send');
+      // Construir la URL correctamente hacia el backend en Railway
+      const url = buildApiUrl('message/send');
 
       const response = await fetch(url, {
         method: 'POST',
@@ -118,6 +121,7 @@ const WhatsAppBotDemo: React.FC = () => {
 
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {
+      console.error('[Network] Error enviando mensaje:', error);
       const errorMessage: Message = {
         role: 'assistant',
         content: 'Disculpa, tengo problemas técnicos. Intenta de nuevo.',
