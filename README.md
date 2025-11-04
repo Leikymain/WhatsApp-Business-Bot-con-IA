@@ -1,158 +1,205 @@
 # WhatsApp Business Bot con IA
 
-Bot inteligente para WhatsApp Business que responde automáticamente a clientes usando IA, con escalado inteligente a humanos cuando es necesario.
+Bot full‑stack para WhatsApp Business que responde automáticamente a clientes usando IA, con escalado inteligente a humanos. El backend expone una API REST con seguridad y rate limiting, y sirve el frontend de producción (Vite) desde `whatsapp-demo/dist`.
 
-## 🏗️ Arquitectura del Proyecto
+## Badges
+[![Deploy: Railway](https://img.shields.io/badge/deploy-railway-blue)](<URL_REPO>) [![Stack: FastAPI](https://img.shields.io/badge/backend-fastapi-green)](<URL_REPO>) [![Stack: React+Vite](https://img.shields.io/badge/frontend-react%20%2B%20vite-orange)](<URL_REPO>)
 
-Este proyecto está compuesto por dos partes principales:
+## Tabla de Contenidos
+- Arquitectura y Tecnologías
+- Requisitos
+- Variables de Entorno
+- Instalación y Configuración
+- Ejecución en Desarrollo
+- Build y Servicio del Frontend
+- Despliegue en Railway
+- Endpoints de la API
+- Seguridad y CORS
+- Troubleshooting
+- Estructura del Repo
+- Contribución y Licencia
+- Créditos
 
-### 🔧 Backend (FastAPI)
-- **API REST** con FastAPI
-- **Autenticación** por Bearer token
-- **Rate limiting** por IP
-- **IA conversacional** con escalado inteligente
-- **CORS** configurado para desarrollo
+## Arquitectura y Tecnologías
+- Backend
+  - FastAPI, Uvicorn, Pydantic
+  - Autenticación: HTTPBearer
+  - CORS configurable
+  - Rate limiting por IP en memoria
+  - SDK oficial de Anthropic para IA
+- Frontend
+  - React 19 + TypeScript
+  - Vite
+  - Tailwind CSS
+  - Lucide Icons
+- Despliegue
+  - Railway (Nixpacks)
+  - Producción: FastAPI sirve estáticos desde `whatsapp-demo/dist`
+- Dominios
+  - Backend: `https://whatsapp-business-bot-con-ia-production.up.railway.app`
+  - Frontend: `<FRONTEND_DOMAIN_O_IGUAL_QUE_BACKEND>`
 
-### 🎨 Frontend (React + TypeScript + Vite)
-- **Interfaz moderna** tipo WhatsApp
-- **React 19** con TypeScript
-- **Tailwind CSS** para estilos
-- **Lucide React** para iconos
-- **Diseño responsive** y animaciones
+## Requisitos
+- Python 3.11+ recomendado
+- Node.js 18+
+- pnpm (recomendado) o npm
 
-## 🚀 Instalación y Configuración
+## Variables de Entorno
+- Backend (no imprimir valores reales)
+  - `ANTHROPIC_API_KEY`: clave de Anthropic
+  - `API_TOKEN`: token Bearer para proteger endpoints
+  - `RATE_LIMIT`: solicitudes por minuto por IP (por defecto `30`)
+  - `PORT`: puerto provisto por Railway (ej. `8080`)
+- Frontend (Vite, build-time; visibles en cliente)
+  - `VITE_API_URL`: URL pública del backend
+  - `VITE_API_TOKEN`: token que el frontend enviará en `Authorization: Bearer <token>`
 
-### Prerrequisitos
-- **Python 3.8+**
-- **Node.js 18+**
-- **pnpm** (recomendado) o npm
-
-### 1. Configuración del Backend
-
-```bash
-# Crear entorno virtual
-python -m venv venv
-
-# Activar entorno virtual
-# Windows:
-venv\Scripts\activate
-# Linux/Mac:
-source venv/bin/activate
-
-# Instalar dependencias
-pip install -r requirements.txt
-
-# Configurar variables de entorno
-cp .env.example .env
-# Editar .env con tus valores
-```
-
-### 2. Configuración del Frontend
-
-```bash
-# Navegar al directorio del frontend
-cd whatsapp-demo
-
-# Instalar dependencias
-pnpm install
-
-# Configurar variables de entorno (opcional)
-cp .env.example .env.local
-```
-
-## 🔐 Seguridad y Rate Limiting
-
-### Características de Seguridad
-
-- **Autenticación** por Bearer token con `HTTPBearer(auto_error=False)` y dependencia `verify_token`
-- **Rate limiting** por IP en memoria (ventana deslizante de 60s) usando variables de entorno
-- **CORS** configurado con `allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"]`
-- El endpoint `/health` es **público** (sin auth ni rate limiting)
-
-### Variables de Entorno
-
-- `API_TOKEN`: Token esperado para el esquema `Authorization: Bearer <token>`
-- `RATE_LIMIT`: Límite de solicitudes por minuto por IP (por defecto `30`)
-
-Ejemplo `.env`:
-
+Ejemplo `.env` (backend):
 ```env
-API_TOKEN=tu_token_secreto_muy_seguro
+ANTHROPIC_API_KEY=<TU_CLAVE_ANTHROPIC>
+API_TOKEN=<TU_TOKEN_SECRETO>
 RATE_LIMIT=30
+# PORT se inyecta por Railway en producción
 ```
 
-### ⚠️ Advertencia de Producción
+Ejemplo `.env` (frontend - si construyes local):
+```env
+VITE_API_URL=https://whatsapp-business-bot-con-ia-production.up.railway.app
+VITE_API_TOKEN=<TU_TOKEN_SEGURO_O_IGUAL_QUE_API_TOKEN>
+```
 
-El rate limit en memoria no es seguro para entornos multi-proceso/cluster ni múltiples réplicas. Para producción, usa una solución distribuida como Redis (por ejemplo, contadores con expiración o token bucket en Redis).
-
-## 🏃‍♂️ Ejecución
-
-### Desarrollo
-
-#### Backend (Terminal 1)
+## Instalación y Configuración
+Backend:
 ```bash
-# Activar entorno virtual
-venv\Scripts\activate  # Windows
-# source venv/bin/activate  # Linux/Mac
+# Crear y activar entorno virtual (Windows)
+python -m venv venv
+venv\Scripts\activate
 
-# Ejecutar servidor de desarrollo
+# Actualizar herramientas y dependencias
+python -m pip install --upgrade pip setuptools wheel
+pip install -r requirements.txt
+```
+
+Frontend:
+```bash
+cd whatsapp-demo
+pnpm install
+```
+
+## Ejecución en Desarrollo
+Backend:
+```bash
 uvicorn main:app --host 0.0.0.0 --port 8003 --reload
 ```
 
-#### Frontend (Terminal 2)
+Frontend:
 ```bash
-# Navegar al frontend
 cd whatsapp-demo
-
-# Ejecutar servidor de desarrollo
 pnpm run dev
 ```
 
-### Producción
+Acceso:
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:8003`
+- Docs: `http://localhost:8003/docs`
+- Health: `http://localhost:8003/health`
 
-#### Backend
-```bash
-uvicorn main:app --host 0.0.0.0 --port 8003
-```
-
-#### Frontend
+## Build y Servicio del Frontend
+Generar build de producción:
 ```bash
 cd whatsapp-demo
-pnpm run build
-pnpm run preview
+pnpm install
+pnpm build
 ```
 
-## 🌐 URLs de Acceso
+Servicio en producción:
+- Si existe `whatsapp-demo/dist`, FastAPI monta `StaticFiles` en `/` y sirve `index.html` como fallback para rutas SPA no‑API.
+- Si no existe, el backend muestra un aviso en consola indicando que se debe construir el frontend.
 
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:8003
-- **Documentación API**: http://localhost:8003/docs
-- **Health Check**: http://localhost:8003/health
+## Despliegue en Railway
+Variables (Service → Variables):
+- Backend:
+  - `ANTHROPIC_API_KEY=<TU_VALOR>`
+  - `API_TOKEN=<TU_VALOR>`
+  - `RATE_LIMIT=<TU_VALOR>`
+- Frontend (si construyes el frontend en el mismo servicio):
+  - `VITE_API_URL=https://whatsapp-business-bot-con-ia-production.up.railway.app`
+  - `VITE_API_TOKEN=<TU_VALOR>`
 
-## Pruebas de humo/manuales
+Comandos:
+- Build:
+```bash
+cd whatsapp-demo && pnpm install && pnpm build
+```
+- Start:
+```bash
+python main.py
+```
 
-Suponiendo `API_TOKEN=secreto` y `RATE_LIMIT=3` para facilitar la prueba:
+Dominio:
+- Generate Service Domain → Target port: `8080`
 
-1. 401 sin token:
+Verificación:
+- `https://whatsapp-business-bot-con-ia-production.up.railway.app/health` debe responder `{"status":"healthy", ...}`
 
-   - Haz una petición `GET /templates` sin header `Authorization`.
-   - Respuesta esperada: `401` con `{"detail":"Falta el header Authorization: Bearer <token>"}`.
+## Endpoints de la API
+| Método | Ruta                                   | Auth      | Descripción                                   | Payload                                      | Respuesta                          |
+|-------|-----------------------------------------|-----------|-----------------------------------------------|----------------------------------------------|------------------------------------|
+| GET   | `/`                                     | —         | Info básica de la API                         | —                                            | JSON info                          |
+| POST  | `/message/send`                         | Bearer    | Genera respuesta IA (Form)                    | `message`, `phone`, `client_id` (FormData)   | `BotResponse`                      |
+| POST  | `/webhook/whatsapp`                     | —         | Webhook simulado                               | Form simulado                                | JSON                                 |
+| POST  | `/client/configure`                     | Bearer    | Configura cliente con base de conocimiento    | JSON `ClientConfig`                          | JSON status                         |
+| GET   | `/client/{client_id}/config`            | Bearer    | Obtiene config de cliente                      | —                                            | JSON config                         |
+| GET   | `/conversation/{client_id}/{phone}`     | Bearer    | Historial de conversación                      | —                                            | JSON historial                      |
+| DELETE| `/conversation/{client_id}/{phone}`     | Bearer    | Limpia historial                                | —                                            | JSON status                         |
+| GET   | `/templates`                            | Bearer    | Lista plantillas de negocio                    | —                                            | JSON templates                      |
+| GET   | `/health`                               | —         | Health check                                   | —                                            | JSON                                 |
 
-2. 401 con token incorrecto:
+Ejemplos `curl`:
+```bash
+# Health (público)
+curl -s https://whatsapp-business-bot-con-ia-production.up.railway.app/health
+```
 
-   - Haz la misma petición con `Authorization: Bearer invalido`.
-   - Respuesta esperada: `401` con `{"detail":"Token inválido o no autorizado"}`.
+```bash
+# Templates (protegido)
+curl -s -H "Authorization: Bearer <API_TOKEN>" \
+  https://whatsapp-business-bot-con-ia-production.up.railway.app/templates
+```
 
-3. 200 con token correcto:
+```bash
+# Enviar mensaje (protegido, FormData)
+curl -s -X POST \
+  -H "Authorization: Bearer <API_TOKEN>" \
+  -F "message=Hola, ¿tenéis menú del día?" \
+  -F "phone=+34600123456" \
+  -F "client_id=restaurante" \
+  https://whatsapp-business-bot-con-ia-production.up.railway.app/message/send
+```
 
-   - Haz la petición con `Authorization: Bearer secreto` dentro del límite.
-   - Respuesta esperada: `200`.
+## Seguridad y CORS
+- Autenticación Bearer con `HTTPBearer(auto_error=False)` y dependencia `verify_token`.
+- Rate limiting por IP en memoria (60s). Recomendado Redis en producción real.
+- CORS: permisivo para pruebas (`allow_origins=["*"]`). En producción, restringir a `<FRONTEND_DOMAIN_O_IGUAL_QUE_BACKEND>`.
+- Frontend (Vite): `VITE_*` se embebe en el build y es visible en cliente.
+  - Riesgo: exponer `Bearer` en navegador. Alternativas:
+    - Quitar auth en `/message/send` y proteger solo rutas administrativas.
+    - Backend intermedio con sesión y firma de peticiones.
+    - Rate limiting, auditoría y validación adicional.
 
-4. 429 al exceder el límite:
+## Troubleshooting
+- `net::ERR_CONNECTION_REFUSED`:
+  - Servicio no escuchando o dominio incorrecto. Verifica `PORT` (8080) y `Generate Domain`.
+- `401 Unauthorized`:
+  - Falta o no coincide `Authorization: Bearer`. Revisa `API_TOKEN` en backend y `VITE_API_TOKEN` en build del frontend.
+- `500 "API key no configurada"`:
+  - Falta `ANTHROPIC_API_KEY` en Railway.
+- CORS:
+  - Bloqueos de navegador. Ajusta `allow_origins` a tu dominio del frontend.
+- Tailwind/PostCSS/Vite:
+  - Warnings de `@tailwind`/`@apply` por linter. Usa la extensión de Tailwind en VS Code.
+  - `Cannot find module 'tailwindcss'`: ejecuta `pnpm install` y asegura `postcss.config.js` y `tailwind.config.js`.
+- Instalación Python:
+  - Si fallan wheels nativos (ej. `uvicorn[standard]`, `tokenizers`), usa `uvicorn` sin extras y actualiza `pip/setuptools/wheel`.
 
-   - Repite la petición protegida desde la misma IP más de `RATE_LIMIT` veces dentro de 60s.
-   - Respuesta esperada: `429` con `{"detail":"Demasiadas peticiones. Espera un minuto antes de volver a intentar."}`.
-
-5. `/health` público:
-   - `GET /health` sin headers especiales.
-   - Respuesta esperada: `200`.
+## Estructura del Repo
