@@ -39,7 +39,8 @@ const WhatsAppBotDemo: React.FC = () => {
   const [businessType, setBusinessType] = useState<BusinessType>('restaurante');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const API_URL = 'http://localhost:8003';
+  const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8003';
+  const API_TOKEN = import.meta.env.VITE_API_TOKEN ?? '';
 
   const scrollToBottom = (): void => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -76,6 +77,9 @@ const WhatsAppBotDemo: React.FC = () => {
 
       const response = await fetch(`${API_URL}/message/send`, {
         method: 'POST',
+        headers: {
+          Authorization: `Bearer ${API_TOKEN}`,
+        },
         body: formData
       });
 

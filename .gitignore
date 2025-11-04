@@ -1,7 +1,5 @@
 # Entorno virtual Python
 venv/
-env/
-.venv/
 .env
 
 # Variables de entorno
@@ -14,6 +12,23 @@ env/
 __pycache__/
 *.py[cod]
 *$py.class
+build/
+dist/
+coverage/
+*.log
+*.pid
+*.tsbuildinfo
+
+# Frontend artifacts
+whatsapp-demo/node_modules/
+whatsapp-demo/dist/
+whatsapp-demo/dist-ssr/
+
+# Env variants
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 *.so
 .Python
 build/
