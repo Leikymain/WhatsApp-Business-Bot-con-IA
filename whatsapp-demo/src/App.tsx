@@ -39,20 +39,27 @@ const WhatsAppBotDemo: React.FC = () => {
   const [businessType, setBusinessType] = useState<BusinessType>('restaurante');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const normalizeBaseUrl = (value: string): string => {
-    if (!/^https?:\/\//i.test(value)) {
-      return `https://${value.replace(/\/+$/, '')}`;
+  // Token de API (Vite env). No mezclar origen del navegador.
+  const API_TOKEN = import.meta.env.VITE_API_TOKEN ?? '';
+
+  // Normaliza la base de la API: corrige protocolo y barras
+  const getApiBase = (): string => {
+    const raw = (import.meta.env.VITE_API_URL ?? 'http://localhost:8003').trim();
+
+    // Añade protocolo si falta (asume https en producción)
+    if (!/^https?:\/\//i.test(raw)) {
+      console.warn('[Config] VITE_API_URL sin protocolo. Asumiendo https://', raw);
+      return `https://${raw.replace(/\/+$/, '')}`;
     }
-    return value.replace(/\/+$/, '');
+
+    // Quita barras finales para evitar dobles slashes
+    return raw.replace(/\/+$/, '');
   };
 
+  // Construye URL absoluta confiable
   const buildApiUrl = (path: string): string => {
-    const raw = import.meta.env.VITE_API_URL;
-    if (typeof raw !== 'string' || !raw.trim()) {
-      throw new Error('Configura VITE_API_URL en el frontend con la URL del backend segura.');
-    }
-    const base = normalizeBaseUrl(raw.trim());
-    const cleanPath = path.replace(/^\/+/, '');
+    const base = getApiBase();
+    const cleanPath = path.replace(/^\/+/, ''); // elimina barras iniciales del path
     return `${base}/${cleanPath}`;
   };
 
@@ -94,9 +101,10 @@ const WhatsAppBotDemo: React.FC = () => {
 
       const response = await fetch(url, {
         method: 'POST',
-        body: formData,
-        credentials: 'include',
-        cache: 'no-store'
+        headers: {
+          Authorization: `Bearer ${API_TOKEN}`,
+        },
+        body: formData
       });
 
       if (!response.ok) throw new Error(`Error en la respuesta: ${response.status}`);
@@ -112,7 +120,8 @@ const WhatsAppBotDemo: React.FC = () => {
       };
 
       setMessages(prev => [...prev, botMessage]);
-    } catch {
+    } catch (error) {
+      console.error('[Network] Error enviando mensaje:', error);
       const errorMessage: Message = {
         role: 'assistant',
         content: 'Disculpa, tengo problemas técnicos. Intenta de nuevo.',

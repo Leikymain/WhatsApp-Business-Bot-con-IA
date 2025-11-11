@@ -7,8 +7,10 @@ import anthropic
 import os
 from datetime import datetime
 from dotenv import load_dotenv
+import json
 from time import time
-import httpx
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 load_dotenv()
 
@@ -20,90 +22,33 @@ app = FastAPI(
 
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
 allowed_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()] or []
-if not allowed_origins or any(origin in {"*", "http://*", "https://*"} for origin in allowed_origins):
-    raise RuntimeError(
-        "Configuración insegura de CORS: define ALLOWED_ORIGINS con dominios explícitos (ej. https://app.automapymes.com)"
-    )
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept"],
-    allow_credentials=True,
 )
 
 # =============================
 # Seguridad: Bearer + Rate Limit
 # =============================
 
-# Autenticación por Bearer token o sesión (validador central)
+# Autenticación por Bearer token
 security = HTTPBearer(auto_error=False)
 API_TOKEN = os.getenv("API_TOKEN")
-AUTH_API_URL = os.getenv("AUTH_API_URL", "").rstrip("/")
-AUTH_API_TIMEOUT = float(os.getenv("AUTH_API_TIMEOUT", "5.0"))
-AUTH_API_SERVICE_TOKEN = os.getenv("AUTH_API_SERVICE_TOKEN")
-SESSION_COOKIE_NAME = os.getenv("AUTH_SESSION_COOKIE", "auth_session")
 
-async def _introspect_session(session_token: str) -> dict[str, Any]:
-    """Valida la sesión del usuario contra la Auth API externa."""
-    if not AUTH_API_URL:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Servicio de autenticación no disponible"
-        )
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Verifica el token Bearer.
 
-    headers = {"Content-Type": "application/json"}
-    if AUTH_API_SERVICE_TOKEN:
-        headers["Authorization"] = f"Bearer {AUTH_API_SERVICE_TOKEN}"
-
-    payload = {"token": session_token}
-    verify_url = f"{AUTH_API_URL}/v1/session/introspect"
-
-    async with httpx.AsyncClient(timeout=AUTH_API_TIMEOUT) as client:
-        try:
-            response = await client.post(verify_url, json=payload, headers=headers)
-        except httpx.RequestError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Fallo de conexión con Auth API"
-            ) from exc
-
-    if response.status_code != 200:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Sesión inválida"
-        )
-
-    try:
-        data = response.json()
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Respuesta inválida de Auth API"
-        ) from exc
-    if not data.get("active"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Sesión expirada"
-        )
-    return data
-
-async def verify_token(
-    request: Request,
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
-    """Verifica el token Bearer o sesión autenticada.
-
-    Prioriza validar sesiones seguras (cookie httpOnly) antes de aceptar tokens en encabezado.
+    Requisitos:
+    - auto_error=False
+    - 401 si falta header Authorization
+    - 401 si token inválido o no autorizado
     """
-    session_token = request.cookies.get(SESSION_COOKIE_NAME)
-    if session_token:
-        return await _introspect_session(session_token)
-
     if credentials is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Autenticación requerida"
+            detail="Falta el header Authorization: Bearer <token>"
         )
 
     token = credentials.credentials
@@ -112,7 +57,6 @@ async def verify_token(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido o no autorizado"
         )
-    return {"auth_method": "bearer-token"}
 
 # Rate limiting por IP (en memoria)
 RATE_LIMIT = int(os.getenv("RATE_LIMIT", 30))  # solicitudes por minuto
