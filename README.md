@@ -35,12 +35,6 @@ Bot full‑stack para WhatsApp Business que responde automáticamente a clientes
   - Vite
   - Tailwind CSS
   - Lucide Icons
-- Despliegue
-  - Railway (Nixpacks)
-  - Producción: FastAPI sirve estáticos desde `whatsapp-demo/dist`
-- Dominios
-  - Backend: `https://whatsapp-business-bot-con-ia-production.up.railway.app`
-  - Frontend: `<FRONTEND_DOMAIN_O_IGUAL_QUE_BACKEND>`
 
 ## Requisitos
 
