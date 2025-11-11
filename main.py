@@ -1,16 +1,18 @@
+import logging
+import os
+from copy import deepcopy
+from datetime import datetime
+from time import time
+from typing import Optional, List, Dict
+
+import anthropic
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, Form, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
-import anthropic
-import os
-from datetime import datetime
-from dotenv import load_dotenv
-import json
-from time import time
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+
+from auth_middleware import require_auth
 
 load_dotenv()
 
@@ -21,42 +23,33 @@ app = FastAPI(
 )
 
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
-allowed_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()] or []
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept"],
-)
+allowed_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+environment = os.getenv("ENVIRONMENT", "development").lower()
+
+cors_args: Dict[str, object] = {
+    "allow_methods": ["GET", "POST", "OPTIONS"],
+    "allow_headers": ["Authorization", "Content-Type", "Accept"],
+    "allow_credentials": True,
+}
+
+if allowed_origins:
+    cors_args["allow_origins"] = allowed_origins
+else:
+    if environment == "production":
+        cors_args["allow_origin_regex"] = r"https://([a-z0-9-]+\.)*automapymes\.com"
+    else:
+        cors_args["allow_origins"] = [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ]
+
+app.add_middleware(CORSMiddleware, **cors_args)
+
+logger = logging.getLogger("whatsapp_bot_api")
 
 # =============================
-# Seguridad: Bearer + Rate Limit
+# Seguridad: Rate Limit
 # =============================
-
-# Autenticación por Bearer token
-security = HTTPBearer(auto_error=False)
-API_TOKEN = os.getenv("API_TOKEN")
-
-def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Verifica el token Bearer.
-
-    Requisitos:
-    - auto_error=False
-    - 401 si falta header Authorization
-    - 401 si token inválido o no autorizado
-    """
-    if credentials is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Falta el header Authorization: Bearer <token>"
-        )
-
-    token = credentials.credentials
-    if not API_TOKEN or token != API_TOKEN:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token inválido o no autorizado"
-        )
 
 # Rate limiting por IP (en memoria)
 RATE_LIMIT = int(os.getenv("RATE_LIMIT", 30))  # solicitudes por minuto
@@ -226,7 +219,11 @@ def get_ai_response(message: str, conversation_history: List[Dict], client_confi
     
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
-        raise HTTPException(status_code=500, detail="API key no configurada")
+        logger.error("ANTHROPIC_API_KEY no configurada")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error interno del servidor"
+        )
     
     client = anthropic.Anthropic(api_key=api_key)
     
@@ -266,8 +263,22 @@ Estilo: WhatsApp (informal pero profesional, mensajes cortos)
         
         return response.content[0].text
         
-    except Exception as e:
+    except Exception:
+        logger.exception("Error generando respuesta de IA")
         return "Disculpa, estoy teniendo problemas técnicos. Un miembro del equipo te responderá enseguida."
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception(
+        "Error no controlado procesando %s %s",
+        request.method,
+        request.url.path,
+    )
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Error interno del servidor"},
+    )
 
 @app.get("/")
 def root():
@@ -280,7 +291,7 @@ def root():
     }
 
 @app.post("/webhook/whatsapp")
-async def whatsapp_webhook(request: Request):
+async def whatsapp_webhook(request: Request, _token: str = Depends(require_auth)):
     """
     Webhook para recibir mensajes de Twilio/WhatsApp Business API.
     En producción, aquí recibirías los mensajes directamente de WhatsApp.
@@ -307,7 +318,7 @@ async def process_message(
     phone: str = Form(...),
     client_id: str = Form(default="demo"),
     req: Request = None,
-    _: Any = Depends(verify_token)
+    _token: str = Depends(require_auth)
 ):
     """
     Endpoint para testing/demo sin Twilio.
@@ -320,7 +331,7 @@ async def process_message(
     # Obtener o crear configuración del cliente
     if client_id not in clients_config:
         # Usar template por defecto
-        clients_config[client_id] = BUSINESS_TEMPLATES["restaurante"].copy()
+        clients_config[client_id] = deepcopy(BUSINESS_TEMPLATES["restaurante"])
         clients_config[client_id]["business_name"] = "Demo Business"
         clients_config[client_id]["client_id"] = client_id
     
@@ -373,8 +384,8 @@ async def process_message(
         timestamp=datetime.now().isoformat()
     )
 
-@app.post("/client/configure", dependencies=[Depends(verify_token)])
-async def configure_client(config: ClientConfig, req: Request):
+@app.post("/client/configure")
+async def configure_client(config: ClientConfig, req: Request, _token: str = Depends(require_auth)):
     """
     Configura un nuevo cliente con su base de conocimiento.
     """
@@ -397,8 +408,8 @@ async def configure_client(config: ClientConfig, req: Request):
         "message": "Cliente configurado correctamente"
     }
 
-@app.get("/client/{client_id}/config", dependencies=[Depends(verify_token)])
-def get_client_config(client_id: str, req: Request):
+@app.get("/client/{client_id}/config")
+def get_client_config(client_id: str, req: Request, _token: str = Depends(require_auth)):
     """Obtiene la configuración de un cliente"""
     # Rate limiting por IP
     if req.client is not None:
@@ -407,8 +418,8 @@ def get_client_config(client_id: str, req: Request):
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
     return clients_config[client_id]
 
-@app.get("/conversation/{client_id}/{phone}", dependencies=[Depends(verify_token)])
-def get_conversation_history(client_id: str, phone: str, req: Request):
+@app.get("/conversation/{client_id}/{phone}")
+def get_conversation_history(client_id: str, phone: str, req: Request, _token: str = Depends(require_auth)):
     """Obtiene el historial de conversación"""
     # Rate limiting por IP
     if req.client is not None:
@@ -422,8 +433,8 @@ def get_conversation_history(client_id: str, phone: str, req: Request):
         "total": len(conversations_store[key])
     }
 
-@app.delete("/conversation/{client_id}/{phone}", dependencies=[Depends(verify_token)])
-def clear_conversation(client_id: str, phone: str, req: Request):
+@app.delete("/conversation/{client_id}/{phone}")
+def clear_conversation(client_id: str, phone: str, req: Request, _token: str = Depends(require_auth)):
     """Limpia el historial de conversación"""
     # Rate limiting por IP
     if req.client is not None:
@@ -433,8 +444,8 @@ def clear_conversation(client_id: str, phone: str, req: Request):
         del conversations_store[key]
     return {"status": "cleared"}
 
-@app.get("/templates", dependencies=[Depends(verify_token)])
-def get_business_templates(req: Request):
+@app.get("/templates")
+def get_business_templates(req: Request, _token: str = Depends(require_auth)):
     """Lista los templates de negocio disponibles"""
     # Rate limiting por IP
     if req.client is not None:

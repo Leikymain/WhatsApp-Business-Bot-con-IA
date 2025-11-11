@@ -1,5 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Send, Bot, User, Phone, CheckCircle2, AlertCircle } from 'lucide-react';
+
+import { fetchAccessToken } from './services/auth';
 
 // Types
 interface Message {
@@ -39,28 +41,20 @@ const WhatsAppBotDemo: React.FC = () => {
   const [businessType, setBusinessType] = useState<BusinessType>('restaurante');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Token de API (Vite env). No mezclar origen del navegador.
-  const API_TOKEN = import.meta.env.VITE_API_TOKEN ?? '';
-
   // Normaliza la base de la API: corrige protocolo y barras
-  const getApiBase = (): string => {
-    const raw = (import.meta.env.VITE_API_URL ?? 'http://localhost:8003').trim();
+  const apiBase = useMemo(() => {
+    const fallback = 'http://localhost:8003';
+    const fromEnv = import.meta.env.VITE_API_URL;
+    const raw = typeof fromEnv === 'string' && fromEnv.trim().length > 0 ? fromEnv.trim() : fallback;
 
-    // Añade protocolo si falta (asume https en producción)
-    if (!/^https?:\/\//i.test(raw)) {
-      console.warn('[Config] VITE_API_URL sin protocolo. Asumiendo https://', raw);
-      return `https://${raw.replace(/\/+$/, '')}`;
-    }
-
-    // Quita barras finales para evitar dobles slashes
-    return raw.replace(/\/+$/, '');
-  };
+    const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    return withProtocol.replace(/\/+$/, '');
+  }, []);
 
   // Construye URL absoluta confiable
   const buildApiUrl = (path: string): string => {
-    const base = getApiBase();
     const cleanPath = path.replace(/^\/+/, ''); // elimina barras iniciales del path
-    return `${base}/${cleanPath}`;
+    return `${apiBase}/${cleanPath}`;
   };
 
   const scrollToBottom = (): void => {
@@ -91,6 +85,11 @@ const WhatsAppBotDemo: React.FC = () => {
     setLoading(true);
 
     try {
+      const token = await fetchAccessToken();
+      if (!token) {
+        throw new Error('No se pudo obtener token de autenticación');
+      }
+
       const formData = new FormData();
       formData.append('message', messageText);
       formData.append('phone', phoneNumber);
@@ -102,7 +101,7 @@ const WhatsAppBotDemo: React.FC = () => {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${API_TOKEN}`,
+          Authorization: `Bearer ${token}`,
         },
         body: formData
       });
@@ -120,11 +119,14 @@ const WhatsAppBotDemo: React.FC = () => {
       };
 
       setMessages(prev => [...prev, botMessage]);
-    } catch (error) {
-      console.error('[Network] Error enviando mensaje:', error);
+    } catch (error: unknown) {
+      const errorMessageText =
+        error instanceof Error
+          ? error.message
+          : 'Error desconocido al enviar mensaje';
       const errorMessage: Message = {
         role: 'assistant',
-        content: 'Disculpa, tengo problemas técnicos. Intenta de nuevo.',
+        content: `Disculpa, tengo problemas técnicos. ${errorMessageText}`,
         timestamp: new Date().toISOString(),
         error: true
       };
