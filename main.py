@@ -17,13 +17,18 @@ app = FastAPI(
     description="Bot de WhatsApp Business con IA - By Jorge Lago",
     version="1.0.0"
 )
-ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "").split(",")
 
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+allowed_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()] or []
+if not allowed_origins or any(origin in {"*", "http://*", "https://*"} for origin in allowed_origins):
+    raise RuntimeError(
+        "Configuración insegura de CORS: define ALLOWED_ORIGINS con dominios explícitos (ej. https://app.automapymes.com)"
+    )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=allowed_origins,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
     allow_credentials=True,
 )
 
