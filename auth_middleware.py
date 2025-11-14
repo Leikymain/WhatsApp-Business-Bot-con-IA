@@ -4,12 +4,12 @@ import os
 from functools import lru_cache
 import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)  
 
 @lru_cache()
 def get_auth_service_url() -> str:
     """Obtiene URL del AuthService desde variable de entorno"""
-    url = os.getenv("AUTH_SERVICE_URL", "http://localhost:8000")
+    url = os.getenv("AUTH_SERVICE_URL", "https://auth.automapymes.com")
     return url
 
 async def require_auth(authorization: str = Header(None)) -> str:
@@ -37,7 +37,7 @@ async def require_auth(authorization: str = Header(None)) -> str:
             detail={
                 "error": "Token requerido",
                 "message": "Debes incluir el header: Authorization: Bearer <token>",
-                "get_token": "https://automapymes.com/acceso"
+                "get_token": "https://automapymes.com/acceso-demos.html"  
             },
             headers={"WWW-Authenticate": "Bearer"}
         )
@@ -66,7 +66,7 @@ async def require_auth(authorization: str = Header(None)) -> str:
     auth_service_url = get_auth_service_url()
     
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=10.0) as client:  
             response = await client.post(
                 f"{auth_service_url}/auth/verify-token",
                 json={"token": token}
@@ -87,20 +87,20 @@ async def require_auth(authorization: str = Header(None)) -> str:
             # Si AuthService responde error HTTP
             if response.status_code != 200:
                 error_detail = payload.get("detail", "Token verification failed")
-                logger.warning("Token rechazado por AuthService")
+                logger.warning(f"Token rechazado por AuthService: {error_detail}")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail={
                         "error": "Token inválido",
                         "message": error_detail,
-                        "get_new_token": "https://automapymes.com/acceso"
+                        "get_new_token": "https://automapymes.com/acceso-demos.html"  
                     }
                 )
             
             # Parsear respuesta
             if not payload.get("valid", False):
                 detail = payload.get("detail", "Token inválido")
-                logger.warning("Token rechazado por AuthService")
+                logger.warning(f"Token inválido: {detail}")
                 
                 # Mensajes específicos según el error
                 if "expired" in detail.lower():
@@ -115,11 +115,12 @@ async def require_auth(authorization: str = Header(None)) -> str:
                     detail={
                         "error": "Token inválido",
                         "message": message,
-                        "get_new_token": "https://automapymes.com/acceso"
+                        "get_new_token": "https://automapymes.com/acceso-demos.html"  
                     }
                 )
             
             # Token válido
+            logger.info(f"✅ Token verificado: {token[:10]}...")  
             return token
             
     except httpx.TimeoutException:
