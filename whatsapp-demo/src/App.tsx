@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Send, Bot, User, Phone, CheckCircle2, AlertCircle } from 'lucide-react';
-import { askForDemoToken } from './services/demoToken';
 import DemoTokenModal from './components/DemoTokenModal';
 
 // === TOKEN INTERCEPTOR GLOBAL ===
@@ -106,38 +105,34 @@ const WhatsAppBotDemo: React.FC = () => {
 
   const handleSendMessage = async (messageText: string = inputMessage): Promise<void> => {
     if (!messageText.trim() || loading) return;
-
+  
     const userMessage: Message = {
       role: 'user',
       content: messageText,
       timestamp: new Date().toISOString()
     };
-
+  
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
     setLoading(true);
-
+  
     try {
-      const token = await askForDemoToken();
-      if (!token) throw new Error('No se pudo obtener token de autenticación');
-
       const formData = new FormData();
       formData.append('message', messageText);
       formData.append('phone', phoneNumber);
       formData.append('client_id', businessType);
-
+  
       const url = buildApiUrl('message/send');
-
+  
       const response = await fetch(url, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
         body: formData
       });
-
+  
       if (!response.ok) throw new Error(`Error en la respuesta: ${response.status}`);
-
+  
       const data: BotResponse = await response.json();
-
+  
       const botMessage: Message = {
         role: 'assistant',
         content: data.response,
@@ -145,7 +140,7 @@ const WhatsAppBotDemo: React.FC = () => {
         shouldEscalate: data.should_escalate,
         escalationReason: data.escalation_reason || undefined
       };
-
+  
       setMessages(prev => [...prev, botMessage]);
     } catch (error: unknown) {
       const errorMessageText = error instanceof Error ? error.message : 'Error desconocido al enviar mensaje';
@@ -160,6 +155,7 @@ const WhatsAppBotDemo: React.FC = () => {
       setLoading(false);
     }
   };
+  
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>): void => {
     if (e.key === 'Enter' && !e.shiftKey) {
