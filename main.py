@@ -69,7 +69,9 @@ def check_rate_limit(client_ip: str):
 async def require_auth_optional(request: Request):
     if request.method == "OPTIONS":
         return None
-    return await require_auth(request)
+    # Extraer header Authorization
+    authorization: str = request.headers.get("Authorization", "")
+    return await require_auth(authorization)
 
 # Modelos de datos
 class Message(BaseModel):

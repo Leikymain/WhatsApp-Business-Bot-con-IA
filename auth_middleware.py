@@ -12,7 +12,7 @@ def get_auth_service_url() -> str:
     url = os.getenv("AUTH_SERVICE_URL", "https://auth.automapymes.com")
     return url
 
-async def require_auth(authorization: str = Header(None)) -> str:
+async def require_auth(authorization: str) -> str:
     """
     Dependency que verifica el token de autorización.
     
@@ -157,7 +157,7 @@ async def require_auth(authorization: str = Header(None)) -> str:
             }
         )
 
-async def optional_auth(authorization: str = Header(None)) -> str | None:
+async def optional_auth(authorization: str | None) -> str | None:
     """
     Dependency opcional de autenticación.
     Si hay token, lo verifica. Si no hay, devuelve None.
