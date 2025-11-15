@@ -66,6 +66,11 @@ def check_rate_limit(client_ip: str):
     timestamps.append(now)
     request_timestamps[client_ip] = timestamps
 
+async def require_auth_optional(request: Request):
+    if request.method == "OPTIONS":
+        return None
+    return await require_auth(request)
+
 # Modelos de datos
 class Message(BaseModel):
     role: str
@@ -277,7 +282,7 @@ def root():
     }
 
 @app.post("/webhook/whatsapp")
-async def whatsapp_webhook(request: Request, _token: str = Depends(require_auth)):
+async def whatsapp_webhook(request: Request, _token: str = Depends(require_auth_optional)):
     """
     Webhook para recibir mensajes de Twilio/WhatsApp Business API.
     En producción, aquí recibirías los mensajes directamente de WhatsApp.
@@ -304,7 +309,7 @@ async def process_message(
     phone: str = Form(...),
     client_id: str = Form(default="demo"),
     req: Request = None,
-    _token: str = Depends(require_auth)
+    _token: str = Depends(require_auth_optional)
 ):
     """
     Endpoint para testing/demo sin Twilio.
@@ -371,7 +376,7 @@ async def process_message(
     )
 
 @app.post("/client/configure")
-async def configure_client(config: ClientConfig, req: Request, _token: str = Depends(require_auth)):
+async def configure_client(config: ClientConfig, req: Request, _token: str = Depends(require_auth_optional)):
     """
     Configura un nuevo cliente con su base de conocimiento.
     """
@@ -395,7 +400,7 @@ async def configure_client(config: ClientConfig, req: Request, _token: str = Dep
     }
 
 @app.get("/client/{client_id}/config")
-def get_client_config(client_id: str, req: Request, _token: str = Depends(require_auth)):
+def get_client_config(client_id: str, req: Request, _token: str = Depends(require_auth_optional)):
     """Obtiene la configuración de un cliente"""
     # Rate limiting por IP
     if req.client is not None:
@@ -405,7 +410,7 @@ def get_client_config(client_id: str, req: Request, _token: str = Depends(requir
     return clients_config[client_id]
 
 @app.get("/conversation/{client_id}/{phone}")
-def get_conversation_history(client_id: str, phone: str, req: Request, _token: str = Depends(require_auth)):
+def get_conversation_history(client_id: str, phone: str, req: Request, _token: str = Depends(require_auth_optional)):
     """Obtiene el historial de conversación"""
     # Rate limiting por IP
     if req.client is not None:
@@ -420,7 +425,7 @@ def get_conversation_history(client_id: str, phone: str, req: Request, _token: s
     }
 
 @app.delete("/conversation/{client_id}/{phone}")
-def clear_conversation(client_id: str, phone: str, req: Request, _token: str = Depends(require_auth)):
+def clear_conversation(client_id: str, phone: str, req: Request, _token: str = Depends(require_auth_optional)):
     """Limpia el historial de conversación"""
     # Rate limiting por IP
     if req.client is not None:
@@ -431,7 +436,7 @@ def clear_conversation(client_id: str, phone: str, req: Request, _token: str = D
     return {"status": "cleared"}
 
 @app.get("/templates")
-def get_business_templates(req: Request, _token: str = Depends(require_auth)):
+def get_business_templates(req: Request, _token: str = Depends(require_auth_optional)):
     """Lista los templates de negocio disponibles"""
     # Rate limiting por IP
     if req.client is not None:
