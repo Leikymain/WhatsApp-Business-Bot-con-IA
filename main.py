@@ -23,9 +23,12 @@ app = FastAPI(
 )
 
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
 
-app.add_middleware(CORSMiddleware, allow_origins=allowed_origins_env,allow_credentials=True,
-    allow_methods=["*"],        # Permite GET, POST, OPTIONS, etc.
+app.add_middleware(CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],       
     allow_headers=["*"], )
 
 logger = logging.getLogger("whatsapp_bot_api")
