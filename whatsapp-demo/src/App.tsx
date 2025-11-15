@@ -1,7 +1,27 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Send, Bot, User, Phone, CheckCircle2, AlertCircle } from 'lucide-react';
+import { askForDemoToken } from './services/demoToken';
+import DemoTokenModal from './components/DemoTokenModal';
 
-import { fetchAccessToken } from './services/auth';
+// === TOKEN INTERCEPTOR GLOBAL ===
+const originalFetch = window.fetch.bind(window);
+
+window.fetch = async (
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> => {
+  const token = localStorage.getItem("demo_token");
+
+  const newInit: RequestInit = {
+    ...init,
+    headers: {
+      ...(init?.headers || {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  };
+
+  return originalFetch(input, newInit);
+};
 
 // Types
 interface Message {
@@ -28,6 +48,7 @@ interface QuickReplies {
 }
 
 const WhatsAppBotDemo: React.FC = () => {
+  // --- ESTADOS PRINCIPALES ---
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -41,19 +62,31 @@ const WhatsAppBotDemo: React.FC = () => {
   const [businessType, setBusinessType] = useState<BusinessType>('restaurante');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Normaliza la base de la API: corrige protocolo y barras
+  // --- ESTADO PARA EL MODAL ---
+  const [hasToken, setHasToken] = useState<boolean>(false);
+
+  // --- DETECTAR TOKEN EN LOCALSTORAGE AL INICIAR ---
+  useEffect(() => {
+    const stored = localStorage.getItem('demo_token');
+    if (stored) setHasToken(true);
+  }, []);
+
+  const handleTokenSubmit = (token: string) => {
+    localStorage.setItem('demo_token', token);
+    setHasToken(true);
+  };
+
+  // Normaliza la base de la API
   const apiBase = useMemo(() => {
     const fallback = 'http://localhost:8003';
     const fromEnv = import.meta.env.VITE_API_URL;
     const raw = typeof fromEnv === 'string' && fromEnv.trim().length > 0 ? fromEnv.trim() : fallback;
-
     const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
     return withProtocol.replace(/\/+$/, '');
   }, []);
 
-  // Construye URL absoluta confiable
   const buildApiUrl = (path: string): string => {
-    const cleanPath = path.replace(/^\/+/, ''); // elimina barras iniciales del path
+    const cleanPath = path.replace(/^\/+/, '');
     return `${apiBase}/${cleanPath}`;
   };
 
@@ -85,24 +118,19 @@ const WhatsAppBotDemo: React.FC = () => {
     setLoading(true);
 
     try {
-      const token = await fetchAccessToken();
-      if (!token) {
-        throw new Error('No se pudo obtener token de autenticación');
-      }
+      const token = await askForDemoToken();
+      if (!token) throw new Error('No se pudo obtener token de autenticación');
 
       const formData = new FormData();
       formData.append('message', messageText);
       formData.append('phone', phoneNumber);
       formData.append('client_id', businessType);
 
-      // Construir la URL correctamente hacia el backend en Railway
       const url = buildApiUrl('message/send');
 
       const response = await fetch(url, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData
       });
 
@@ -120,10 +148,7 @@ const WhatsAppBotDemo: React.FC = () => {
 
       setMessages(prev => [...prev, botMessage]);
     } catch (error: unknown) {
-      const errorMessageText =
-        error instanceof Error
-          ? error.message
-          : 'Error desconocido al enviar mensaje';
+      const errorMessageText = error instanceof Error ? error.message : 'Error desconocido al enviar mensaje';
       const errorMessage: Message = {
         role: 'assistant',
         content: `Disculpa, tengo problemas técnicos. ${errorMessageText}`,
@@ -154,16 +179,19 @@ const WhatsAppBotDemo: React.FC = () => {
   };
 
   const formatTime = (timestamp: string): string => {
-    return new Date(timestamp).toLocaleTimeString('es-ES', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return new Date(timestamp).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   };
 
+  // --- MOSTRAR MODAL SI NO HAY TOKEN ---
+  if (!hasToken) {
+    return <DemoTokenModal onSubmit={handleTokenSubmit} />;
+  }
+
+  // --- RENDER PRINCIPAL ---
   return (
     <div className="min-h-screen bg-gradient-to-br from-whatsapp-50 via-white to-whatsapp-100">
       <div className="max-w-6xl mx-auto px-4 py-6">
-        {/* Header */}
+        {/* --- HEADER --- */}
         <div className="text-center mb-8 animate-fade-in">
           <div className="flex items-center justify-center gap-4 mb-6">
             <div className="w-16 h-16 bg-whatsapp-primary rounded-full flex items-center justify-center shadow-lg">
@@ -180,7 +208,7 @@ const WhatsAppBotDemo: React.FC = () => {
           </div>
         </div>
 
-        {/* Business Type Selector */}
+        {/* --- BUSINESS TYPE --- */}
         <div className="bg-white rounded-2xl shadow-xl p-6 mb-8 border border-gray-100 animate-slide-up">
           <h3 className="font-bold text-gray-800 mb-4 text-lg">Tipo de Negocio (Demo):</h3>
           <div className="flex gap-4 flex-wrap justify-center">
@@ -203,9 +231,9 @@ const WhatsAppBotDemo: React.FC = () => {
           </div>
         </div>
 
-        {/* Chat Container */}
+        {/* --- CHAT CONTAINER --- */}
         <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 animate-slide-up">
-          {/* Chat Header */}
+          {/* Chat header */}
           <div className="bg-gradient-to-r from-whatsapp-primary to-whatsapp-secondary text-white p-6 relative">
             <div className="absolute inset-0 bg-black bg-opacity-10"></div>
             <div className="relative flex items-center gap-4">
@@ -225,49 +253,35 @@ const WhatsAppBotDemo: React.FC = () => {
             </div>
           </div>
 
-          {/* Messages Area */}
-          <div 
-            className="p-6 space-y-4 overflow-y-auto whatsapp-bg custom-scrollbar"
-            style={{ 
-              height: '500px',
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d4ccc4' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
-            }}
-          >
+          {/* Messages */}
+          <div className="p-6 space-y-4 overflow-y-auto whatsapp-bg custom-scrollbar" style={{ height: '500px' }}>
             {messages.map((msg, idx) => (
-              <div
-                key={idx}
-                className={`flex mb-4 animate-fade-in ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
+              <div key={idx} className={`flex mb-4 animate-fade-in ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`flex items-end gap-2 max-w-[80%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                   {msg.role === 'assistant' && (
                     <div className="w-8 h-8 bg-whatsapp-primary rounded-full flex items-center justify-center flex-shrink-0 shadow-md">
                       <Bot className="w-5 h-5 text-white" />
                     </div>
                   )}
-                  
-                  <div
-                    className={`relative px-4 py-3 rounded-2xl shadow-lg ${
-                      msg.role === 'user'
-                        ? 'bg-whatsapp-light text-gray-800 rounded-br-md'
-                        : msg.error
-                        ? 'bg-red-100 text-red-800 border border-red-200 rounded-bl-md'
-                        : 'bg-white text-gray-800 border border-gray-100 rounded-bl-md'
-                    }`}
-                  >
+
+                  <div className={`relative px-4 py-3 rounded-2xl shadow-lg ${
+                    msg.role === 'user'
+                      ? 'bg-whatsapp-light text-gray-800 rounded-br-md'
+                      : msg.error
+                      ? 'bg-red-100 text-red-800 border border-red-200 rounded-bl-md'
+                      : 'bg-white text-gray-800 border border-gray-100 rounded-bl-md'
+                  }`}>
                     <div className="space-y-2">
                       <p className="whitespace-pre-wrap leading-relaxed text-sm">{msg.content}</p>
-                      
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-gray-500">
-                          {formatTime(msg.timestamp)}
-                        </span>
+                        <span className="text-xs text-gray-500">{formatTime(msg.timestamp)}</span>
                         {msg.role === 'user' && (
                           <div className="flex">
                             <CheckCircle2 className="w-4 h-4 text-blue-500" />
                           </div>
                         )}
                       </div>
-                      
+
                       {msg.shouldEscalate && msg.escalationReason && (
                         <div className="mt-2 flex items-center gap-2 text-xs text-orange-700 bg-orange-50 p-2 rounded-lg border border-orange-200">
                           <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -276,7 +290,7 @@ const WhatsAppBotDemo: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  
+
                   {msg.role === 'user' && (
                     <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center flex-shrink-0 shadow-md">
                       <User className="w-5 h-5 text-white" />
@@ -285,7 +299,7 @@ const WhatsAppBotDemo: React.FC = () => {
                 </div>
               </div>
             ))}
-            
+
             {loading && (
               <div className="flex justify-start mb-4 animate-fade-in">
                 <div className="flex items-end gap-2">
@@ -328,17 +342,12 @@ const WhatsAppBotDemo: React.FC = () => {
                 <input
                   type="text"
                   value={inputMessage}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInputMessage(e.target.value)}
+                  onChange={(e) => setInputMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
                   placeholder="Escribe un mensaje..."
                   disabled={loading}
                   className="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-full focus:outline-none focus:border-whatsapp-primary focus:ring-2 focus:ring-whatsapp-primary focus:ring-opacity-20 disabled:opacity-50 transition-all duration-200 text-sm"
                 />
-                {inputMessage.trim() && (
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                    <div className="w-2 h-2 bg-whatsapp-primary rounded-full animate-pulse"></div>
-                  </div>
-                )}
               </div>
               <button
                 onClick={() => handleSendMessage()}
@@ -351,8 +360,8 @@ const WhatsAppBotDemo: React.FC = () => {
           </div>
         </div>
 
-        {/* Features */}
-        <div className="mt-12 grid md:grid-cols-3 gap-8">
+       {/* Features */}
+       <div className="mt-12 grid md:grid-cols-3 gap-8">
           <div className="bg-white rounded-2xl shadow-xl p-8 text-center transform hover:scale-105 transition-all duration-300 border border-gray-100 group">
             <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-whatsapp-primary rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg group-hover:shadow-xl transition-shadow">
               <CheckCircle2 className="w-8 h-8 text-white" />
@@ -390,6 +399,7 @@ const WhatsAppBotDemo: React.FC = () => {
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );
