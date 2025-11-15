@@ -23,27 +23,10 @@ app = FastAPI(
 )
 
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
-allowed_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
-environment = os.getenv("ENVIRONMENT", "development").lower()
 
-cors_args: Dict[str, object] = {
-    "allow_methods": ["GET", "POST", "OPTIONS"],
-    "allow_headers": ["Authorization", "Content-Type", "Accept"],
-    "allow_credentials": True,
-}
-
-if allowed_origins:
-    cors_args["allow_origins"] = allowed_origins
-else:
-    if environment == "production":
-        cors_args["allow_origin_regex"] = r"https://([a-z0-9-]+\.)*automapymes\.com"
-    else:
-        cors_args["allow_origins"] = [
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-        ]
-
-app.add_middleware(CORSMiddleware, **cors_args)
+app.add_middleware(CORSMiddleware, allow_origins=allowed_origins_env,allow_credentials=True,
+    allow_methods=["*"],        # Permite GET, POST, OPTIONS, etc.
+    allow_headers=["*"], )
 
 logger = logging.getLogger("whatsapp_bot_api")
 
