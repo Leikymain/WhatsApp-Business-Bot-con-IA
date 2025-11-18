@@ -66,7 +66,11 @@ const WhatsAppBotDemo: React.FC = () => {
 
   // --- SIEMPRE MOSTRAR MODAL AL INICIAR ---
   // El modal se mostrará siempre al acceder a la página
-
+  useEffect(() => {
+    // No comprobamos nada del localStorage
+    setHasToken(false);
+  }, []);
+  
   const handleTokenSubmit = (token: string) => {
     localStorage.setItem('demo_token', token);
     setHasToken(true);
