@@ -70,7 +70,7 @@ const WhatsAppBotDemo: React.FC = () => {
     // No comprobamos nada del localStorage
     setHasToken(false);
   }, []);
-  
+
   const handleTokenSubmit = (token: string) => {
     localStorage.setItem('demo_token', token);
     setHasToken(true);
@@ -89,14 +89,6 @@ const WhatsAppBotDemo: React.FC = () => {
     const cleanPath = path.replace(/^\/+/, '');
     return `${apiBase}/${cleanPath}`;
   };
-
-  const scrollToBottom = (): void => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
 
   const quickReplies: QuickReplies = {
     restaurante: ['Horario', 'Reserva', 'Menú del día', 'Precios'],
