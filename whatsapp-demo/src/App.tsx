@@ -64,11 +64,8 @@ const WhatsAppBotDemo: React.FC = () => {
   // --- ESTADO PARA EL MODAL ---
   const [hasToken, setHasToken] = useState<boolean>(false);
 
-  // --- DETECTAR TOKEN EN LOCALSTORAGE AL INICIAR ---
-  useEffect(() => {
-    const stored = localStorage.getItem('demo_token');
-    if (stored) setHasToken(true);
-  }, []);
+  // --- SIEMPRE MOSTRAR MODAL AL INICIAR ---
+  // El modal se mostrará siempre al acceder a la página
 
   const handleTokenSubmit = (token: string) => {
     localStorage.setItem('demo_token', token);
@@ -178,7 +175,6 @@ const WhatsAppBotDemo: React.FC = () => {
     return new Date(timestamp).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   };
 
-  // --- MOSTRAR MODAL SI NO HAY TOKEN ---
   if (!hasToken) {
     return <DemoTokenModal onSubmit={handleTokenSubmit} />;
   }
