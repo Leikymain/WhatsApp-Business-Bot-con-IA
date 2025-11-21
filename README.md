@@ -6,21 +6,7 @@ Bot full‑stack para WhatsApp Business que responde automáticamente a clientes
 
 [![Deploy: Railway](https://img.shields.io/badge/deploy-railway-blue)](URL_REPO) [![Stack: FastAPI](https://img.shields.io/badge/backend-fastapi-green)](URL_REPO) [![Stack: React+Vite](https://img.shields.io/badge/frontend-react%20%2B%20vite-orange)](URL_REPO)
 
-## Tabla de Contenidos
 
-- Arquitectura y Tecnologías
-- Requisitos
-- Variables de Entorno
-- Instalación y Configuración
-- Ejecución en Desarrollo
-- Build y Servicio del Frontend
-- Despliegue en Railway
-- Endpoints de la API
-- Seguridad y CORS
-- Troubleshooting
-- Estructura del Repo
-- Contribución y Licencia
-- Créditos
 
 ## Arquitectura y Tecnologías
 
